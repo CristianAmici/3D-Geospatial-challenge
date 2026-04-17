@@ -6,13 +6,17 @@ export interface MarkerMeshResources {
   material: MeshStandardMaterial;
 }
 
+const MARKER_RADIUS = 20;
+const MARKER_WIDTH_SEGMENTS = 24;
+const MARKER_HEIGHT_SEGMENTS = 24;
+
 export function createMarkerMeshResources(): MarkerMeshResources {
   return {
-    geometry: new SphereGeometry(0.25, 16, 16),
+    geometry: new SphereGeometry(MARKER_RADIUS, MARKER_WIDTH_SEGMENTS, MARKER_HEIGHT_SEGMENTS),
     material: new MeshStandardMaterial({
       color: '#03c924',
-      emissive: '#2a120d',
-      emissiveIntensity: 0.5,
+      emissive: '#035c10',
+      emissiveIntensity: 0.8,
     }),
   };
 }

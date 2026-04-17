@@ -42,7 +42,7 @@ body {
   top: 16px;
   right: 16px;
   z-index: 10;
-  width: 260px;
+  width: 320px;
   padding: 12px;
   border: 1px solid #2b3139;
   border-radius: 8px;
@@ -89,9 +89,13 @@ body {
 
 .viewer-control-panel__field {
   display: grid;
-  grid-template-columns: 16px 1fr;
+  grid-template-columns: 112px 1fr;
   align-items: center;
   gap: 8px;
+}
+
+.viewer-control-panel__field > span {
+  white-space: nowrap;
 }
 
 .viewer-control-panel__input {
@@ -122,4 +126,23 @@ body {
   margin: 0;
   color: #8e97a6;
   font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.viewer-control-panel__hint {
+  margin: 0;
+  color: #aab3c2;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.viewer-control-panel__warning {
+  margin: 0;
+  color: #ffbe87;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }

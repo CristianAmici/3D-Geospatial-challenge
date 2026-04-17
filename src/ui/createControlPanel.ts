@@ -60,7 +60,12 @@ export function createControlPanel(viewerContext: ViewerBootstrapContext): Contr
   const modelList = document.createElement('div');
   modelList.className = 'viewer-control-panel__model-list';
 
-  modelsSection.append(modelsTitle, modelList);
+  const focusAllButton = document.createElement('button');
+  focusAllButton.type = 'button';
+  focusAllButton.className = 'viewer-control-panel__button';
+  focusAllButton.textContent = 'Focus All';
+
+  modelsSection.append(modelsTitle, focusAllButton, modelList);
 
   const markerSection = document.createElement('section');
   markerSection.className = 'viewer-control-panel__section';
@@ -69,9 +74,9 @@ export function createControlPanel(viewerContext: ViewerBootstrapContext): Contr
   markerTitle.className = 'viewer-control-panel__section-title';
   markerTitle.textContent = 'Marker';
 
-  const xField = createNumberInput('X', 0);
-  const yField = createNumberInput('Y', 0);
-  const zField = createNumberInput('Z', 0);
+  const xField = createNumberInput('X (CAD)', 0);
+  const yField = createNumberInput('Y (CAD)', 0);
+  const zField = createNumberInput('Z (CAD)', 0);
   const xInput = xField.querySelector('input');
   const yInput = yField.querySelector('input');
   const zInput = zField.querySelector('input');
@@ -83,9 +88,21 @@ export function createControlPanel(viewerContext: ViewerBootstrapContext): Contr
   const createMarkerButton = document.createElement('button');
   createMarkerButton.type = 'button';
   createMarkerButton.className = 'viewer-control-panel__button';
-  createMarkerButton.textContent = 'Create Marker';
+  createMarkerButton.textContent = 'Add Marker';
 
-  markerSection.append(markerTitle, xField, yField, zField, createMarkerButton);
+  const clearMarkersButton = document.createElement('button');
+  clearMarkersButton.type = 'button';
+  clearMarkersButton.className = 'viewer-control-panel__button';
+  clearMarkersButton.textContent = 'Clear Markers';
+
+  markerSection.append(
+    markerTitle,
+    xField,
+    yField,
+    zField,
+    createMarkerButton,
+    clearMarkersButton,
+  );
   panelElement.append(title, modelsSection, markerSection);
   document.body.appendChild(panelElement);
 
@@ -135,20 +152,38 @@ export function createControlPanel(viewerContext: ViewerBootstrapContext): Contr
     renderModelRows();
   });
 
+  const handleFocusAllClick = (): void => {
+    const didFocus = viewerContext.focusAllVisibleModels();
+    console.log('[ui] Focus all visible models', {
+      didFocus,
+    });
+  };
+
   const handleCreateMarkerClick = (): void => {
-    // Marker inputs are interpreted directly as scene-space coordinates.
     const markerPosition = getMarkerPositionFromInputs(xInput, yInput, zInput);
 
-    const marker = viewerContext.markerManager.createMarker(markerPosition);
+    const marker = viewerContext.markerManager.createMarker(markerPosition, {
+      coordinateSpace: 'source',
+    });
+    viewerContext.focusMarkerById(marker.id);
 
     console.log('[ui] Marker created', {
       id: marker.id,
       name: marker.name,
-      position: markerPosition,
+      coordinateSpace: marker.coordinateSpace,
+      inputPosition: marker.inputPosition,
+      scenePosition: marker.position,
     });
   };
 
+  const handleClearMarkersClick = (): void => {
+    viewerContext.markerManager.clearMarkers();
+    console.log('[ui] Markers cleared');
+  };
+
   createMarkerButton.addEventListener('click', handleCreateMarkerClick);
+  clearMarkersButton.addEventListener('click', handleClearMarkersClick);
+  focusAllButton.addEventListener('click', handleFocusAllClick);
   renderModelRows();
 
   let isDisposed = false;
@@ -162,7 +197,10 @@ export function createControlPanel(viewerContext: ViewerBootstrapContext): Contr
       isDisposed = true;
       unsubscribeModelManager();
       createMarkerButton.removeEventListener('click', handleCreateMarkerClick);
+      clearMarkersButton.removeEventListener('click', handleClearMarkersClick);
+      focusAllButton.removeEventListener('click', handleFocusAllClick);
       panelElement.remove();
     },
   };
 }
+

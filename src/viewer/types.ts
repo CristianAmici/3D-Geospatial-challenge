@@ -28,6 +28,8 @@ export interface ViewerBootstrapContext extends ViewerCoreContext {
   markerManager: MarkerManager;
   getSceneGlobalOrigin: () => Vector3Tuple | null;
   focusModelById: (modelId: string) => boolean;
+  focusAllVisibleModels: () => boolean;
+  focusMarkerById: (markerId: number) => boolean;
   updateClippingFromVisibleModels: () => void;
   dispose: () => void;
 }

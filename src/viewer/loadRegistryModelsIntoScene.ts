@@ -3,8 +3,9 @@ import type { PerspectiveCamera, Scene } from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { loadObjModel } from '../loaders';
-import { modelRegistry, sceneGlobalOrigin } from '../models';
+import { modelRegistry } from '../models';
 import type { ModelManager, ModelSpatialMetadata, Vector3Tuple } from '../models';
+import type { SceneSpatialTransformer } from '../spatial';
 import { fitCameraToBox } from './fitCameraToBox';
 
 const ZERO_VECTOR3: Vector3Tuple = [0, 0, 0];
@@ -14,6 +15,7 @@ interface LoadRegistryModelsIntoSceneContext {
   camera: PerspectiveCamera;
   controls: OrbitControls;
   modelManager: ModelManager;
+  spatialTransformer: SceneSpatialTransformer;
   isDisposed: () => boolean;
   onGlobalOriginResolved?: (globalOrigin: Vector3Tuple) => void;
   onSceneBoundsResolved?: (sceneBounds: Box3) => void;
@@ -23,16 +25,12 @@ function toTuple(vector: Vector3): Vector3Tuple {
   return [vector.x, vector.y, vector.z];
 }
 
-function addTuple(a: Vector3Tuple, b: Vector3Tuple): Vector3Tuple {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function subtractTuple(a: Vector3Tuple, b: Vector3Tuple): Vector3Tuple {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
 function tupleToVector3(tuple: Vector3Tuple): Vector3 {
   return new Vector3(tuple[0], tuple[1], tuple[2]);
+}
+
+function negateTuple(tuple: Vector3Tuple): Vector3Tuple {
+  return [-tuple[0], -tuple[1], -tuple[2]];
 }
 
 function getCombinedVisibleModelsBounds(modelManager: ModelManager): Box3 | null {
@@ -111,15 +109,15 @@ export async function loadRegistryModelsIntoScene({
   camera,
   controls,
   modelManager,
+  spatialTransformer,
   isDisposed,
   onGlobalOriginResolved,
   onSceneBoundsResolved,
 }: LoadRegistryModelsIntoSceneContext): Promise<void> {
   const objLoader = new OBJLoader();
-  let resolvedGlobalOrigin = sceneGlobalOrigin;
-
-  if (resolvedGlobalOrigin) {
-    onGlobalOriginResolved?.(resolvedGlobalOrigin);
+  const configuredGlobalOrigin = spatialTransformer.getGlobalOrigin();
+  if (configuredGlobalOrigin) {
+    onGlobalOriginResolved?.(configuredGlobalOrigin);
   }
 
   for (const modelConfig of modelRegistry) {
@@ -134,19 +132,20 @@ export async function loadRegistryModelsIntoScene({
         return;
       }
 
+      const resolvedGlobalOrigin = spatialTransformer.getGlobalOrigin();
       if (!resolvedGlobalOrigin) {
         // First successfully loaded model anchors scene-space origin.
-        resolvedGlobalOrigin = loadedModel.originalCenter;
-        onGlobalOriginResolved?.(resolvedGlobalOrigin);
+        const nextGlobalOrigin = spatialTransformer.ensureGlobalOrigin(loadedModel.originalCenter);
+        onGlobalOriginResolved?.(nextGlobalOrigin);
       }
 
-      const appliedGlobalOffset = resolvedGlobalOrigin
-        ? subtractTuple(ZERO_VECTOR3, resolvedGlobalOrigin)
-        : ZERO_VECTOR3;
       const appliedLocalOffset = modelConfig.localOffset ?? ZERO_VECTOR3;
-      const sourceToSceneOffset = addTuple(appliedGlobalOffset, appliedLocalOffset);
+      const globalOrigin = spatialTransformer.getGlobalOrigin();
+      const appliedGlobalOffset = globalOrigin ? negateTuple(globalOrigin) : ZERO_VECTOR3;
+      const scenePosition = spatialTransformer.sourceToScene(ZERO_VECTOR3, appliedLocalOffset);
 
-      loadedModel.model.position.add(tupleToVector3(sourceToSceneOffset));
+      loadedModel.model.position.copy(tupleToVector3(scenePosition));
+      loadedModel.model.rotation.set(...spatialTransformer.getSceneRotation());
       loadedModel.model.updateMatrixWorld(true);
 
       const sceneModel = createSceneModelWrapper(
